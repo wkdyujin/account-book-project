@@ -1,0 +1,9 @@
+# pip install -r requirements.txt
+datetime
+elasticsearch
+elasticsearch_dsl
+streamlit
+pandas
+plotly
+html5lib
+beautifulsoup4

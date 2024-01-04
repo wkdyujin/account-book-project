@@ -29,7 +29,7 @@ def get_total_price(month):
     start_date, end_date = set_range(month)
     s = Search(index=INDEX).using(client).query("match_all")
     s = s.filter('range', 날짜={'gte': start_date, 'lte': end_date})
-    s.aggs.bucket('positive_amounts', 'range', field='금액', ranges=[{"from": 0.01}]).metric('sum_positive', 'sum', field='금액')6
+    s.aggs.bucket('positive_amounts', 'range', field='금액', ranges=[{"from": 0.01}]).metric('sum_positive', 'sum', field='금액')
     s.aggs.bucket('negative_amounts', 'range', field='금액', ranges=[{"to": 0}]).metric('sum_negative', 'sum', field='금액')
     response = s.execute()
 

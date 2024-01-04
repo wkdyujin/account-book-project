@@ -7,7 +7,7 @@ import plotly.io as pio
 import plotly.express as px
 import plotly.graph_objects as go
 from elastic_api import search_index, get_total_price, search_index2, remove_content
-st.header("월 별 가계부")
+from streamlit_js_eval import streamlit_js_eval
 
 def format_currency(value):
     return f"{int(value):,}원"
@@ -20,21 +20,7 @@ def set_summary(month, total_profit, total_loss):
     else:
         st.text("=> 지출을 좀 줄이셔야 할 것 같습니다..")
 
-# 문제 1. (아마도) 조회 시 자동으로 페이징 되어서 최대 9개밖에 안 나옴 => 해결
-# 문제 2. 값이 없는 달 분기처리 => 해결
-month = st.selectbox("월을 선택해 주세요", list(range(1, 13)))
-print(month)
-
-result = search_index(month)
-if result:
-    st.subheader(f"{month}월 소비 요약")
-    # st.write(result.to_dict()["hits"]["hits"])
-    print(result["hits"])
-    source_data = [entry["_source"] for entry in result.to_dict()["hits"]["hits"]]
-    df = pd.DataFrame(source_data)
-    total_profit, total_loss = get_total_price(month)
-    set_summary(month, total_profit, total_loss)
-
+def set_plot():
     date_sum=df.groupby('날짜')[['금액']].sum()
     fig1 = px.line(date_sum)
     payment=df[df.타입=='지출']
@@ -42,7 +28,7 @@ if result:
     payment_sum=payment.groupby('대분류')[['금액']].sum()
     payment_sum.reset_index(inplace=True)
     fig2=px.pie(payment_sum, values='금액', names='대분류')
-    # st.dataframe(payment_sum)
+
     col1, col2, = st.columns(2)
     with col1:
         st.subheader('일별 수입/지출')
@@ -50,9 +36,32 @@ if result:
     with col2:
         st.subheader('대분류별 소비 비중')
         st.plotly_chart(fig2, use_container_width=True)
+
+def set_table(df):
     st.subheader(f"전체 거래 내역")
     st.dataframe(df)
-    
+    print(df)
+
+st.header("월 별 가계부")
+month = st.selectbox("월을 선택해 주세요", list(range(1, 13)))
+result = search_index(month)
+if result:
+    combined_data = []
+    for entry in result.to_dict()["hits"]["hits"]:
+        source = entry["_source"]  # _source 데이터
+        source["_id"] = entry["_id"]  # _index 추가
+        combined_data.append(source)
+
+    # DataFrame 생성
+    df = pd.DataFrame(combined_data)
+
+    selected_columns = ['_id', '대분류', '내용', '날짜', '금액', '결제수단', '소분류', '타입']
+    df_selected = df[selected_columns]
+
+    total_profit, total_loss = get_total_price(month)
+    set_summary(month, total_profit, total_loss)
+    set_plot()
+    set_table(df_selected)    
 else:
     st.text(f"{month}월에는 입력된 데이터가 없어요")
 
@@ -73,7 +82,8 @@ with st.sidebar:
     delete_transection = st.button("가계부 내용 삭제하기")
     if(delete_transection):
         remove_content(del_index)
-        st.experimental_rerun()
+        streamlit_js_eval(js_expressions="parent.window.location.reload()")
 
 if insert_transection == True:
     insert_result = search_index2(transection_category, transection_content, transection_date, transection_method, transection_bill, transection_small_category, transection_type)
+    streamlit_js_eval(js_expressions="parent.window.location.reload()")
